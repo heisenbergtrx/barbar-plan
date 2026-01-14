@@ -1,48 +1,53 @@
 import { NextResponse } from 'next/server';
 
 const SYMBOL = 'BTCUSDT';
-// Spot verileri için Vision, Futures için fapi (dikkat: fapi US IP'lerini bloklayabilir, 
-// Vercel region ayarı gerekebilir ama şimdilik standart fapi deniyoruz)
-const SPOT_API = 'https://data-api.binance.vision/api/v3';
-const FUTURES_API = 'https://fapi.binance.com/fapi/v1'; 
+// Sadece Spot API kullanıyoruz (Vercel Dostu)
+const API_BASE = 'https://data-api.binance.vision/api/v3';
 
 export const revalidate = 10; 
 
 export async function GET() {
   try {
-    const headers = { 'Cache-Control': 'no-store' };
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    };
+
     const fetchOptions = { headers, next: { revalidate: 0 } };
 
-    // Paralel Veri Çekimi (Spot + Futures)
-    const [weekly, monthly, yearly, daily, fourHour, ticker, oiData, takerVol] = await Promise.all([
-      // Spot Klines (Mevcut)
-      fetch(`${SPOT_API}/klines?symbol=${SYMBOL}&interval=1w&limit=250`, fetchOptions).then(r => r.json()),
-      fetch(`${SPOT_API}/klines?symbol=${SYMBOL}&interval=1M&limit=12`, fetchOptions).then(r => r.json()),
-      fetch(`${SPOT_API}/klines?symbol=${SYMBOL}&interval=1M&limit=12`, fetchOptions).then(r => r.json()),
-      fetch(`${SPOT_API}/klines?symbol=${SYMBOL}&interval=1d&limit=250`, fetchOptions).then(r => r.json()),
-      fetch(`${SPOT_API}/klines?symbol=${SYMBOL}&interval=4h&limit=250`, fetchOptions).then(r => r.json()),
-      fetch(`${SPOT_API}/ticker/price?symbol=${SYMBOL}`, fetchOptions).then(r => r.json()),
-      
-      // Futures Verileri (Yeni)
-      // Open Interest
-      fetch(`${FUTURES_API}/openInterest?symbol=${SYMBOL}`, fetchOptions).then(r => r.json()).catch(() => ({ openInterest: 0 })),
-      // Taker Buy/Sell Volume (Son 24s)
-      fetch(`${FUTURES_API}/ticker/24hr?symbol=${SYMBOL}`, fetchOptions).then(r => r.json()).catch(() => ({ lastPrice: 0 }))
+    const [weekly, monthly, yearly, daily, fourHour, ticker] = await Promise.all([
+      fetch(`${API_BASE}/klines?symbol=${SYMBOL}&interval=1w&limit=250`, fetchOptions).then(r => r.json()),
+      fetch(`${API_BASE}/klines?symbol=${SYMBOL}&interval=1M&limit=12`, fetchOptions).then(r => r.json()),
+      fetch(`${API_BASE}/klines?symbol=${SYMBOL}&interval=1M&limit=12`, fetchOptions).then(r => r.json()),
+      fetch(`${API_BASE}/klines?symbol=${SYMBOL}&interval=1d&limit=250`, fetchOptions).then(r => r.json()),
+      fetch(`${API_BASE}/klines?symbol=${SYMBOL}&interval=4h&limit=250`, fetchOptions).then(r => r.json()),
+      fetch(`${API_BASE}/ticker/price?symbol=${SYMBOL}`, fetchOptions).then(r => r.json())
     ]);
 
-    // Hata Kontrolü
     if (weekly.code || ticker.code) {
-      throw new Error(`API Hatası: ${weekly.msg || ticker.msg}`);
+      throw new Error(`Binance API Hatası: ${weekly.msg || ticker.msg}`);
     }
+
+    // --- ORDERFLOW HESAPLAMA (SPOT DELTA) ---
+    // Son 4 Saatlik mumun içindeki alıcı/satıcı verisini çekiyoruz.
+    // Index 10: Taker buy quote asset volume (Alıcıların Hacmi)
+    // Index 7: Quote asset volume (Toplam Hacim)
+    const lastCandle = fourHour[fourHour.length - 1];
+    const buyVol = parseFloat(lastCandle[10]);
+    const totalVol = parseFloat(lastCandle[7]);
+    
+    // Futures OI verisi alamadığımız için 24s Hacmi kullanıyoruz
+    // 24s Hacim için son 6 adet 4H mumunu toplayabiliriz veya basitçe son mumu scale edebiliriz.
+    // Daha doğru olması için günlük mumun hacmini alalım.
+    const lastDaily = daily[daily.length - 1];
+    const dayVol = parseFloat(lastDaily[7]);
 
     return NextResponse.json({
       price: parseFloat(ticker.price),
       klines: { weekly, monthly, yearly, daily, fourHour },
       orderflow: {
-        oi: parseFloat(oiData.openInterest || 0),
-        // Taker Volume hesaplaması için ham veri yerine quote volume kullanıyoruz
-        volBuy: parseFloat(takerVol.takerBuyQuoteVolume || 0),
-        volTotal: parseFloat(takerVol.quoteVolume || 1) // 0'a bölünme hatası olmasın
+        volBuy: buyVol,
+        volTotal: totalVol,
+        dayVolume: dayVol // OI yerine kullanılacak
       },
       timestamp: new Date().toISOString()
     }, { status: 200 });
