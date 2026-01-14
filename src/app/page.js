@@ -1,15 +1,16 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import LevelsTable from './components/LevelsTable';
 import MarketVitals from './components/MarketVitals';
 import TrendMonitor from './components/TrendMonitor';
 import ProtocolDisplay from './components/ProtocolDisplay';
 import YearlyFooter from './components/YearlyFooter';
-import HTFLevels from './components/HTFLevels'; // Yeni eklenen bileşen
+import HTFLevels from './components/HTFLevels';
+import PriceChart from './components/PriceChart'; // Grafik bileşeni
 import { BookOpen, Globe, AlertTriangle, RefreshCw } from 'lucide-react';
 
-// Oturum Hesaplama Fonksiyonu
+// Oturum Hesaplama
 const getActiveSession = () => {
   const hour = new Date().getUTCHours();
   if (hour >= 0 && hour < 8) return { name: 'ASIA SESSION', color: 'text-yellow-500', desc: 'Yatay range ve likidite avı (Sweep) yaygındır.' };
@@ -28,19 +29,10 @@ export default function Dashboard() {
     try {
       setError(null);
       const res = await fetch('/api/market-data');
-      
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`API Hatası: ${res.status} - ${errorText.slice(0, 50)}`);
-      }
-
+      if (!res.ok) throw new Error(`API Hatası: ${res.status}`);
       const json = await res.json();
-      
-      if(json.price) {
-        setData(json);
-      } else {
-        throw new Error("Veri formatı hatalı (Fiyat bulunamadı)");
-      }
+      if(json.price) setData(json);
+      else throw new Error("Fiyat verisi alınamadı");
     } catch (e) { 
       console.error("Veri hatası:", e);
       setError(e.message);
@@ -50,30 +42,57 @@ export default function Dashboard() {
   useEffect(() => {
     fetchData();
     setSession(getActiveSession());
-
     const interval = setInterval(() => {
       fetchData();
       setSession(getActiveSession());
     }, 5000);
-    
     return () => clearInterval(interval);
   }, []);
 
-  // HATA EKRANI
+  // --- GRAFİK İÇİN SEVİYE HESAPLAMA (Memoized) ---
+  const chartLevels = useMemo(() => {
+    if (!data) return [];
+    
+    const calculateRawLevels = (klines, timeframe) => {
+        if (!klines || klines.length < 2) return [];
+        const prev = klines[klines.length - 2];
+        const h = parseFloat(prev[2]);
+        const l = parseFloat(prev[3]);
+        const r = h - l;
+        const COEFF_TRAP = 0.13;
+        const COEFF_TREND = 0.618;
+
+        return [
+            { label: `${timeframe} EXT. II`, price: h + (r * COEFF_TREND), type: 'extension_trend_res' },
+            { label: `${timeframe} EXT. I`, price: h + (r * COEFF_TRAP), type: 'extension_trap_res' },
+            { label: `${timeframe} PWH/PMH`, price: h, type: 'resistance' },
+            { label: `${timeframe} PWL/PML`, price: l, type: 'support' },
+            { label: `${timeframe} EXT. I`, price: l - (r * COEFF_TRAP), type: 'extension_trap_sup' },
+            { label: `${timeframe} EXT. II`, price: l - (r * COEFF_TREND), type: 'extension_trend_sup' },
+        ];
+    };
+
+    const wLevels = calculateRawLevels(data.klines.weekly, 'W');
+    const mLevels = calculateRawLevels(data.klines.monthly, 'M');
+    
+    // Confluence Kontrolü
+    const all = [...wLevels, ...mLevels];
+    return all.map(lvl => {
+        const isConfluence = all.some(o => o !== lvl && Math.abs((lvl.price - o.price)/lvl.price) < 0.003);
+        return { ...lvl, isConfluence };
+    });
+  }, [data]);
+
+  // Yükleme ve Hata Ekranları
   if (error && !data) return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center text-red-500 font-mono p-6 text-center">
         <AlertTriangle className="w-16 h-16 mb-4 animate-bounce" />
         <h2 className="text-2xl font-bold mb-2">VERİ AKIŞI KESİLDİ</h2>
-        <div className="bg-red-900/20 border border-red-800 p-4 rounded text-sm text-red-300 mb-6 max-w-lg break-all">
-          {error}
-        </div>
-        <button onClick={fetchData} className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors">
-          <RefreshCw size={18} /> TEKRAR DENE
-        </button>
+        <div className="bg-red-900/20 border border-red-800 p-4 rounded text-sm text-red-300 mb-6">{error}</div>
+        <button onClick={fetchData} className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors flex items-center gap-2"><RefreshCw size={18}/> TEKRAR DENE</button>
     </div>
   );
 
-  // YÜKLEME EKRANI
   if (!data) return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center text-amber-500 font-mono">
       <RefreshCw className="w-12 h-12 animate-spin mb-4" />
@@ -86,50 +105,45 @@ export default function Dashboard() {
       <Header price={data.price} />
       
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* ÜST BÖLÜM: HAFTALIK VE AYLIK TABLOLAR */}
+        
+        {/* 1. GRAFİK (Price Chart) - En Üste Eklendi */}
+        <PriceChart data={data.klines.fourHour} levels={chartLevels} />
+
+        {/* 2. TABLOLAR (Grid) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <LevelsTable timeframe="Weekly" klines={data.klines.weekly} price={data.price} dailyData={data.klines.daily} />
           <LevelsTable timeframe="Monthly" klines={data.klines.monthly} price={data.price} />
         </div>
 
-        {/* PROTOKOL UYARISI */}
+        {/* 3. PROTOKOL */}
         <ProtocolDisplay />
 
-        {/* ALT BÖLÜM: ANALİTİK KARTLARI (Grid 5 sütuna çıkarıldı) */}
+        {/* 4. ANALİTİK KARTLARI */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          
-          {/* 1. YENİ EKLENEN: HTF SEVİYELERİ */}
           <HTFLevels dailyData={data.klines.daily} weeklyData={data.klines.weekly} price={data.price} />
-
-          {/* 2. SÖZLÜK */}
+          
           <div className="bg-neutral-900/50 border border-neutral-800 rounded-lg p-4">
              <div className="flex items-center gap-2 mb-3 text-neutral-500 border-b border-neutral-800 pb-2">
                 <BookOpen size={14} />
                 <span className="text-[10px] font-bold uppercase tracking-widest">SÖZLÜK (TR)</span>
              </div>
              <div className="grid grid-cols-1 gap-2 text-[10px]">
-               <div className="flex justify-between"><span className="text-amber-500 font-bold">MONDAY RANGE</span> <span className="text-neutral-500 text-right">Haftalık Yön (Bias). Pivot.</span></div>
-               <div className="flex justify-between"><span className="text-amber-500 font-bold">CONFLUENCE</span> <span className="text-neutral-500 text-right">Kesişim. Yüksek Olasılık.</span></div>
-               <div className="flex justify-between"><span className="text-amber-500 font-bold">PWH/PWL</span> <span className="text-neutral-500 text-right">Likidite Havuzları.</span></div>
-               <div className="flex justify-between"><span className="text-amber-500 font-bold">EXT. I (TRAP)</span> <span className="text-neutral-500 text-right">Tuzak Bölgesi (SFP).</span></div>
+               <div className="flex justify-between"><span className="text-amber-500 font-bold">MONDAY RANGE</span> <span className="text-neutral-500 text-right">Haftalık Yön.</span></div>
+               <div className="flex justify-between"><span className="text-amber-500 font-bold">CONFLUENCE</span> <span className="text-neutral-500 text-right">Kesişim.</span></div>
+               <div className="flex justify-between"><span className="text-amber-500 font-bold">PWH/PWL</span> <span className="text-neutral-500 text-right">Likidite (Sweep).</span></div>
+               <div className="flex justify-between"><span className="text-amber-500 font-bold">EXT. I (TRAP)</span> <span className="text-neutral-500 text-right">Tuzak (SFP).</span></div>
                <div className="flex justify-between"><span className="text-amber-500 font-bold">EXT. II (TREND)</span> <span className="text-neutral-500 text-right">Trend Hedefi.</span></div>
              </div>
           </div>
 
-          {/* 3. SESSION MONITOR */}
           <div className="bg-neutral-900/30 border border-neutral-800/50 rounded-lg p-4 flex flex-col items-center justify-center text-center">
              <Globe className="text-neutral-600 w-8 h-8 mb-2" />
              <div className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">SESSION MONITOR</div>
              <div className={`text-sm font-bold font-mono tracking-wider ${session.color}`}>{session.name}</div>
-             <div className="mt-2 text-[10px] text-neutral-600 italic px-4 leading-tight">
-               {session.desc}
-             </div>
+             <div className="mt-2 text-[10px] text-neutral-600 italic px-4 leading-tight">{session.desc}</div>
           </div>
 
-          {/* 4. TREND MONITOR */}
           <TrendMonitor fourHourData={data.klines.fourHour} />
-          
-          {/* 5. MARKET VITALS */}
           <MarketVitals dailyData={data.klines.daily} />
         </div>
       </div>
