@@ -6,26 +6,71 @@ import MarketVitals from './components/MarketVitals';
 import TrendMonitor from './components/TrendMonitor';
 import ProtocolDisplay from './components/ProtocolDisplay';
 import YearlyFooter from './components/YearlyFooter';
-import { BookOpen, Globe } from 'lucide-react';
+import { BookOpen, Globe, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+
+  const fetchData = async () => {
+    try {
+      setError(null);
+      const res = await fetch('/api/market-data');
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`API Hatası: ${res.status} - ${errorText.slice(0, 50)}`);
+      }
+
+      const json = await res.json();
+      
+      if(json.price) {
+        setData(json);
+      } else {
+        throw new Error("Veri formatı hatalı (Fiyat bulunamadı)");
+      }
+    } catch (e) { 
+      console.error("Veri hatası:", e);
+      setError(e.message);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch('/api/market-data');
-        const json = await res.json();
-        if(json.price) setData(json);
-      } catch (e) { console.error(e); }
-    };
-
     fetchData();
-    const interval = setInterval(fetchData, 3000);
+    // Sorgu aralığını 5 saniyeye çıkardım (Rate Limit yememek için)
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  if (!data) return <div className="min-h-screen bg-black flex items-center justify-center text-amber-500 font-mono animate-pulse">TERMINAL LOADING...</div>;
+  // HATA EKRANI (Bunu görmek istiyoruz)
+  if (error && !data) return (
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center text-red-500 font-mono p-6 text-center">
+        <AlertTriangle className="w-16 h-16 mb-4 animate-bounce" />
+        <h2 className="text-2xl font-bold mb-2">VERİ AKIŞI KESİLDİ</h2>
+        <div className="bg-red-900/20 border border-red-800 p-4 rounded text-sm text-red-300 mb-6 max-w-lg break-all">
+          {error}
+        </div>
+        <button 
+          onClick={fetchData}
+          className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors"
+        >
+          <RefreshCw size={18} /> TEKRAR DENE
+        </button>
+        <p className="text-xs text-neutral-600 mt-8 max-w-md">
+            * Eğer "500" hatası alıyorsan: Binance API Vercel sunucusunu blokluyor olabilir.<br/>
+            * Eğer "404" hatası alıyorsan: API rotası (route.js) bulunamıyor.
+        </p>
+    </div>
+  );
+
+  // YÜKLEME EKRANI
+  if (!data) return (
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center text-amber-500 font-mono">
+      <RefreshCw className="w-12 h-12 animate-spin mb-4" />
+      <span className="animate-pulse tracking-widest text-lg">TERMINAL LOADING...</span>
+      <span className="text-xs text-neutral-600 mt-2">Connecting to Exchange Feed</span>
+    </div>
+  );
 
   return (
     <main className="min-h-screen bg-black text-neutral-400 font-sans pb-32">
