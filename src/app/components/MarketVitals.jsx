@@ -1,3 +1,4 @@
+'use client';
 import { Gauge, HelpCircle } from 'lucide-react';
 import { useState, useMemo } from 'react';
 

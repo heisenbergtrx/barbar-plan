@@ -1,3 +1,4 @@
+'use client';
 import { Info, TrendingUp, TrendingDown, Flame } from 'lucide-react';
 import { useState } from 'react';
 

@@ -1,4 +1,6 @@
+'use client';
 import { Layers } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 const formatCurrency = (value) => {
   if (!value) return '---';
@@ -15,7 +17,13 @@ const getActiveSession = () => {
 };
 
 export default function Header({ price }) {
-  const session = getActiveSession();
+  const [session, setSession] = useState({ name: 'LOADING...', color: 'text-neutral-500' });
+
+  useEffect(() => {
+    setSession(getActiveSession());
+    const interval = setInterval(() => setSession(getActiveSession()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <header className="border-b border-neutral-800 bg-neutral-950/50 backdrop-blur sticky top-0 z-20">

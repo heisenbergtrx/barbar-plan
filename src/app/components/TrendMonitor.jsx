@@ -1,3 +1,4 @@
+'use client';
 import { BarChart2, HelpCircle } from 'lucide-react';
 import { useState, useMemo } from 'react';
 

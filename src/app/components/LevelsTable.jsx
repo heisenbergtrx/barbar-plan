@@ -1,3 +1,4 @@
+'use client';
 import { Zap, Box, Flame, Target, Skull, Clock } from 'lucide-react';
 import { useMemo } from 'react';
 
