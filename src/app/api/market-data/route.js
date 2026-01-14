@@ -1,40 +1,49 @@
 import { NextResponse } from 'next/server';
 
 const SYMBOL = 'BTCUSDT';
-const API_BASE = 'https://data-api.binance.vision/api/v3';
+// Spot verileri için Vision, Futures için fapi (dikkat: fapi US IP'lerini bloklayabilir, 
+// Vercel region ayarı gerekebilir ama şimdilik standart fapi deniyoruz)
+const SPOT_API = 'https://data-api.binance.vision/api/v3';
+const FUTURES_API = 'https://fapi.binance.com/fapi/v1'; 
 
-// Next.js Cache Ayarı: Bu route'un cevabını 10 saniye boyunca sakla.
-// 1000 kullanıcı aynı anda girse bile Binance'e 10 saniyede sadece 1 istek gider.
 export const revalidate = 10; 
 
 export async function GET() {
   try {
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    };
+    const headers = { 'Cache-Control': 'no-store' };
+    const fetchOptions = { headers, next: { revalidate: 0 } };
 
-    // Cache ayarını 'force-cache' yapıyoruz veya next: { revalidate } kullanıyoruz.
-    // Ancak route segment config (yukarıdaki export const revalidate) en temizidir.
-    const fetchOptions = { 
-      headers
-    };
-
-    const [weekly, monthly, yearly, daily, fourHour, ticker] = await Promise.all([
-      fetch(`${API_BASE}/klines?symbol=${SYMBOL}&interval=1w&limit=250`, fetchOptions).then(r => r.json()),
-      fetch(`${API_BASE}/klines?symbol=${SYMBOL}&interval=1M&limit=12`, fetchOptions).then(r => r.json()),
-      fetch(`${API_BASE}/klines?symbol=${SYMBOL}&interval=1M&limit=12`, fetchOptions).then(r => r.json()),
-      fetch(`${API_BASE}/klines?symbol=${SYMBOL}&interval=1d&limit=250`, fetchOptions).then(r => r.json()),
-      fetch(`${API_BASE}/klines?symbol=${SYMBOL}&interval=4h&limit=250`, fetchOptions).then(r => r.json()),
-      fetch(`${API_BASE}/ticker/price?symbol=${SYMBOL}`, fetchOptions).then(r => r.json())
+    // Paralel Veri Çekimi (Spot + Futures)
+    const [weekly, monthly, yearly, daily, fourHour, ticker, oiData, takerVol] = await Promise.all([
+      // Spot Klines (Mevcut)
+      fetch(`${SPOT_API}/klines?symbol=${SYMBOL}&interval=1w&limit=250`, fetchOptions).then(r => r.json()),
+      fetch(`${SPOT_API}/klines?symbol=${SYMBOL}&interval=1M&limit=12`, fetchOptions).then(r => r.json()),
+      fetch(`${SPOT_API}/klines?symbol=${SYMBOL}&interval=1M&limit=12`, fetchOptions).then(r => r.json()),
+      fetch(`${SPOT_API}/klines?symbol=${SYMBOL}&interval=1d&limit=250`, fetchOptions).then(r => r.json()),
+      fetch(`${SPOT_API}/klines?symbol=${SYMBOL}&interval=4h&limit=250`, fetchOptions).then(r => r.json()),
+      fetch(`${SPOT_API}/ticker/price?symbol=${SYMBOL}`, fetchOptions).then(r => r.json()),
+      
+      // Futures Verileri (Yeni)
+      // Open Interest
+      fetch(`${FUTURES_API}/openInterest?symbol=${SYMBOL}`, fetchOptions).then(r => r.json()).catch(() => ({ openInterest: 0 })),
+      // Taker Buy/Sell Volume (Son 24s)
+      fetch(`${FUTURES_API}/ticker/24hr?symbol=${SYMBOL}`, fetchOptions).then(r => r.json()).catch(() => ({ lastPrice: 0 }))
     ]);
 
+    // Hata Kontrolü
     if (weekly.code || ticker.code) {
-      throw new Error(`Binance API Hatası: ${weekly.msg || ticker.msg}`);
+      throw new Error(`API Hatası: ${weekly.msg || ticker.msg}`);
     }
 
     return NextResponse.json({
       price: parseFloat(ticker.price),
       klines: { weekly, monthly, yearly, daily, fourHour },
+      orderflow: {
+        oi: parseFloat(oiData.openInterest || 0),
+        // Taker Volume hesaplaması için ham veri yerine quote volume kullanıyoruz
+        volBuy: parseFloat(takerVol.takerBuyQuoteVolume || 0),
+        volTotal: parseFloat(takerVol.quoteVolume || 1) // 0'a bölünme hatası olmasın
+      },
       timestamp: new Date().toISOString()
     }, { status: 200 });
 

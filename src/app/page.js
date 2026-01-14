@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import dynamic from 'next/dynamic'; // Dynamic import için gerekli
+import dynamic from 'next/dynamic';
 import Header from './components/Header';
 import LevelsTable from './components/LevelsTable';
 import MarketVitals from './components/MarketVitals';
@@ -8,28 +8,36 @@ import TrendMonitor from './components/TrendMonitor';
 import ProtocolDisplay from './components/ProtocolDisplay';
 import YearlyFooter from './components/YearlyFooter';
 import HTFLevels from './components/HTFLevels';
+import OrderFlow from './components/OrderFlow'; // Yeni
+import EconomicCalendar from './components/EconomicCalendar'; // Yeni
 import { BookOpen, Globe, AlertTriangle, RefreshCw } from 'lucide-react';
 
-// PriceChart'ı sunucu tarafında (SSR) devre dışı bırakarak çağırıyoruz
 const PriceChart = dynamic(() => import('./components/PriceChart'), { 
   ssr: false,
   loading: () => <div className="w-full h-[400px] bg-neutral-900/30 animate-pulse rounded-lg border border-neutral-800/50 flex items-center justify-center text-xs text-neutral-600">Grafik Yükleniyor...</div>
 });
 
-// Oturum Hesaplama
 const getActiveSession = () => {
   const hour = new Date().getUTCHours();
-  if (hour >= 0 && hour < 8) return { name: 'ASIA SESSION', color: 'text-yellow-500', desc: 'Yatay range ve likidite avı (Sweep) yaygındır.' };
-  if (hour >= 8 && hour < 13) return { name: 'LONDON OPEN', color: 'text-blue-400', desc: 'Hacim artar, günün trendi belirlenmeye başlar.' };
-  if (hour >= 13 && hour < 16) return { name: 'NY & LONDON OVERLAP', color: 'text-purple-400', desc: 'Volatilite zirve yapar. Ana hareketler buradadır.' };
-  if (hour >= 16 && hour < 21) return { name: 'NY SESSION (PM)', color: 'text-emerald-400', desc: 'Trend devamı veya gün sonu kapanış hareketleri.' };
-  return { name: 'MARKET CLOSE/THIN', color: 'text-neutral-500', desc: 'Düşük likidite, spread açılabilir.' };
+  if (hour >= 0 && hour < 8) return { name: 'ASIA SESSION', color: 'text-yellow-500', desc: 'Likidite Avı (Sweep)' };
+  if (hour >= 8 && hour < 13) return { name: 'LONDON OPEN', color: 'text-blue-400', desc: 'Trend Başlangıcı' };
+  if (hour >= 13 && hour < 16) return { name: 'NY & LDN OVERLAP', color: 'text-purple-400', desc: 'Yüksek Volatilite' };
+  if (hour >= 16 && hour < 21) return { name: 'NY SESSION (PM)', color: 'text-emerald-400', desc: 'Kapanış Hareketleri' };
+  return { name: 'MARKET CLOSE', color: 'text-neutral-500', desc: 'Düşük Likidite' };
+};
+
+// Basit MA Hesaplama
+const calculateSMA = (candles, period) => {
+  if (!candles || candles.length < period) return null;
+  const slice = candles.slice(-period);
+  const sum = slice.reduce((acc, c) => acc + parseFloat(c[4]), 0);
+  return sum / period;
 };
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [session, setSession] = useState({ name: 'LOADING...', color: 'text-neutral-500', desc: '' });
+  const [session, setSession] = useState({ name: 'LOADING...', color: 'text-neutral-500' });
 
   const fetchData = async () => {
     try {
@@ -55,10 +63,11 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // --- GRAFİK İÇİN SEVİYE HESAPLAMA (Memoized) ---
+  // --- DYNAMIC CONFLUENCE ENGINE ---
   const chartLevels = useMemo(() => {
     if (!data) return [];
     
+    // 1. Standart Seviyeleri Hesapla
     const calculateRawLevels = (klines, timeframe) => {
         if (!klines || klines.length < 2) return [];
         const prev = klines[klines.length - 2];
@@ -78,18 +87,28 @@ export default function Dashboard() {
         ];
     };
 
+    // 2. MA Seviyelerini Hesapla (HTF Confluence için)
+    const ma200d = calculateSMA(data.klines.daily, 200);
+    const ma200w = calculateSMA(data.klines.weekly, 200);
+    
+    const maLevels = [];
+    if(ma200d) maLevels.push({ label: '200D MA', price: ma200d, type: 'ma' });
+    if(ma200w) maLevels.push({ label: '200W MA', price: ma200w, type: 'ma' });
+
     const wLevels = calculateRawLevels(data.klines.weekly, 'W');
     const mLevels = calculateRawLevels(data.klines.monthly, 'M');
     
-    // Confluence Kontrolü
-    const all = [...wLevels, ...mLevels];
+    // 3. Hepsini Birleştir ve Kesişimleri (Confluence) Bul
+    const all = [...wLevels, ...mLevels, ...maLevels];
+    
     return all.map(lvl => {
-        const isConfluence = all.some(o => o !== lvl && Math.abs((lvl.price - o.price)/lvl.price) < 0.003);
+        // %0.5'ten daha yakın başka bir seviye var mı?
+        const isConfluence = all.some(o => o !== lvl && Math.abs((lvl.price - o.price)/lvl.price) < 0.005);
         return { ...lvl, isConfluence };
     });
   }, [data]);
 
-  // Yükleme ve Hata Ekranları
+  // HATA EKRANI
   if (error && !data) return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center text-red-500 font-mono p-6 text-center">
         <AlertTriangle className="w-16 h-16 mb-4 animate-bounce" />
@@ -99,10 +118,11 @@ export default function Dashboard() {
     </div>
   );
 
+  // YÜKLEME EKRANI
   if (!data) return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center text-amber-500 font-mono">
       <RefreshCw className="w-12 h-12 animate-spin mb-4" />
-      <span className="animate-pulse tracking-widest text-lg">TERMINAL LOADING...</span>
+      <span className="animate-pulse tracking-widest text-lg">BARBARIANS TERMINAL</span>
     </div>
   );
 
@@ -112,7 +132,7 @@ export default function Dashboard() {
       
       <div className="max-w-7xl mx-auto px-4 py-6">
         
-        {/* 1. GRAFİK (Price Chart) - Client Side Only */}
+        {/* 1. GRAFİK (Price Chart) */}
         <PriceChart data={data.klines.fourHour} levels={chartLevels} />
 
         {/* 2. TABLOLAR (Grid) */}
@@ -121,11 +141,25 @@ export default function Dashboard() {
           <LevelsTable timeframe="Monthly" klines={data.klines.monthly} price={data.price} />
         </div>
 
-        {/* 3. PROTOKOL */}
+        {/* 3. KURUMSAL PANEL (Grid 4 Sütun) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+           {/* OrderFlow (YENİ) */}
+           <OrderFlow data={data.orderflow} />
+           
+           {/* Trend Monitor */}
+           <TrendMonitor fourHourData={data.klines.fourHour} />
+           
+           {/* Market Vitals */}
+           <MarketVitals dailyData={data.klines.daily} />
+
+           {/* Economic Calendar (YENİ) */}
+           <EconomicCalendar />
+        </div>
+
         <ProtocolDisplay />
 
-        {/* 4. ANALİTİK KARTLARI */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        {/* 4. ALT ANALİTİK (Grid 3 Sütun) */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <HTFLevels dailyData={data.klines.daily} weeklyData={data.klines.weekly} price={data.price} />
           
           <div className="bg-neutral-900/50 border border-neutral-800 rounded-lg p-4">
@@ -138,7 +172,6 @@ export default function Dashboard() {
                <div className="flex justify-between"><span className="text-amber-500 font-bold">CONFLUENCE</span> <span className="text-neutral-500 text-right">Kesişim.</span></div>
                <div className="flex justify-between"><span className="text-amber-500 font-bold">PWH/PWL</span> <span className="text-neutral-500 text-right">Likidite (Sweep).</span></div>
                <div className="flex justify-between"><span className="text-amber-500 font-bold">EXT. I (TRAP)</span> <span className="text-neutral-500 text-right">Tuzak (SFP).</span></div>
-               <div className="flex justify-between"><span className="text-amber-500 font-bold">EXT. II (TREND)</span> <span className="text-neutral-500 text-right">Trend Hedefi.</span></div>
              </div>
           </div>
 
@@ -148,9 +181,6 @@ export default function Dashboard() {
              <div className={`text-sm font-bold font-mono tracking-wider ${session.color}`}>{session.name}</div>
              <div className="mt-2 text-[10px] text-neutral-600 italic px-4 leading-tight">{session.desc}</div>
           </div>
-
-          <TrendMonitor fourHourData={data.klines.fourHour} />
-          <MarketVitals dailyData={data.klines.daily} />
         </div>
       </div>
 
