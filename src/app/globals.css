@@ -3,20 +3,39 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+  --foreground-rgb: 161, 161, 170; /* Zinc-400 */
+  --background-base: #0a0a0b;      /* İstediğin Koyu Base */
+  --background-card: #111113;      /* İstediğin Kart Rengi */
+  --accent-gold: #f59e0b;          /* Amber-500 */
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: black;
+  background-color: var(--background-base);
+  /* Subtle Noise Overlay - Profesyonel Doku */
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* Scrollbar Özelleştirme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background-base); 
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a; /* Zinc-800 */
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46; /* Zinc-700 */
+}
+
+/* Selection (Seçim Rengi) */
+::selection {
+  background-color: rgba(245, 158, 11, 0.2); 
+  color: #fbbf24;
 }

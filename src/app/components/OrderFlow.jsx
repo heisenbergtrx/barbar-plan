@@ -12,33 +12,36 @@ export default function OrderFlow({ data }) {
   const buyRatio = (data.volBuy / totalVol) * 100;
   const isBullishFlow = buyRatio > 50;
   
-  // 24H Volume (OI Yerine Spot Hacmi kullanıyoruz)
+  // 24H Volume (OI Yerine Spot Hacmi)
   const volumeValue = data.dayVolume; 
 
   return (
-    <div className="bg-neutral-900/30 border border-neutral-800/50 rounded-lg p-4 flex flex-col justify-between">
-      <div className="flex items-center gap-2 mb-3 text-neutral-500 border-b border-neutral-800 pb-2">
+    <div className="bg-[#111113] border border-white/5 rounded-lg p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+      {/* Hafif Gold Glow Efekti (Hover'da belirir) */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+      <div className="flex items-center gap-2 mb-4 text-zinc-500 border-b border-white/5 pb-2">
         <Activity size={14} className="text-amber-500" />
-        <span className="text-[10px] font-bold uppercase tracking-widest">ORDERFLOW (SPOT DELTA)</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">ORDERFLOW (SPOT)</span>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {/* VOLUME DELTA (Alıcı/Satıcı Dengesi) */}
         <div>
-          <div className="flex justify-between text-[10px] text-neutral-400 mb-1">
+          <div className="flex justify-between text-[10px] text-zinc-400 mb-1.5 font-medium">
             <span>BUY/SELL RATIO (4H)</span>
-            <span className={isBullishFlow ? 'text-emerald-500' : 'text-red-500'}>
+            <span className={isBullishFlow ? 'text-emerald-400' : 'text-red-400'}>
               {buyRatio.toFixed(1)}% {isBullishFlow ? 'BULLS' : 'BEARS'}
             </span>
           </div>
-          {/* Progress Bar */}
-          <div className="w-full h-2 bg-neutral-800 rounded-full overflow-hidden flex">
+          {/* Progress Bar - Minimalist ve Zarif */}
+          <div className="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden flex border border-white/5">
             <div 
-              className="h-full bg-emerald-600 transition-all duration-500" 
+              className="h-full bg-emerald-500/80 transition-all duration-500" 
               style={{ width: `${buyRatio}%` }}
             ></div>
             <div 
-              className="h-full bg-red-600 transition-all duration-500" 
+              className="h-full bg-red-500/80 transition-all duration-500" 
               style={{ width: `${100 - buyRatio}%` }}
             ></div>
           </div>
@@ -47,10 +50,10 @@ export default function OrderFlow({ data }) {
         {/* 24H VOLUME */}
         <div className="flex items-center justify-between">
            <div className="flex items-center gap-2">
-             <Layers size={14} className="text-blue-400" />
-             <span className="text-[10px] text-neutral-400">24H VOLUME (USDT)</span>
+             <Layers size={14} className="text-blue-400/80" />
+             <span className="text-[10px] text-zinc-400 font-medium">24H VOLUME (USDT)</span>
            </div>
-           <div className="text-sm font-mono font-bold text-neutral-200">
+           <div className="text-sm font-mono font-bold text-zinc-200">
              {formatCompact(volumeValue)}
            </div>
         </div>
