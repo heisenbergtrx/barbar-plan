@@ -8,9 +8,20 @@ import ProtocolDisplay from './components/ProtocolDisplay';
 import YearlyFooter from './components/YearlyFooter';
 import { BookOpen, Globe, AlertTriangle, RefreshCw } from 'lucide-react';
 
+// Oturum Hesaplama Fonksiyonu
+const getActiveSession = () => {
+  const hour = new Date().getUTCHours();
+  if (hour >= 0 && hour < 8) return { name: 'ASIA SESSION', color: 'text-yellow-500', desc: 'Yatay range ve likidite avı (Sweep) yaygındır.' };
+  if (hour >= 8 && hour < 13) return { name: 'LONDON OPEN', color: 'text-blue-400', desc: 'Hacim artar, günün trendi belirlenmeye başlar.' };
+  if (hour >= 13 && hour < 16) return { name: 'NY & LONDON OVERLAP', color: 'text-purple-400', desc: 'Volatilite zirve yapar. Ana hareketler buradadır.' };
+  if (hour >= 16 && hour < 21) return { name: 'NY SESSION (PM)', color: 'text-emerald-400', desc: 'Trend devamı veya gün sonu kapanış hareketleri.' };
+  return { name: 'MARKET CLOSE/THIN', color: 'text-neutral-500', desc: 'Düşük likidite, spread açılabilir.' };
+};
+
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [session, setSession] = useState({ name: 'LOADING...', color: 'text-neutral-500', desc: '' });
 
   const fetchData = async () => {
     try {
@@ -37,7 +48,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 5000);
+    setSession(getActiveSession()); // İlk yüklemede session ayarla
+
+    const interval = setInterval(() => {
+      fetchData();
+      setSession(getActiveSession()); // Her döngüde session güncelle
+    }, 5000);
+    
     return () => clearInterval(interval);
   }, []);
 
@@ -76,7 +93,7 @@ export default function Dashboard() {
         <ProtocolDisplay />
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* GLOSSARY - Genişletilmiş Versiyon */}
+          {/* GLOSSARY */}
           <div className="bg-neutral-900/50 border border-neutral-800 rounded-lg p-4">
              <div className="flex items-center gap-2 mb-3 text-neutral-500 border-b border-neutral-800 pb-2">
                 <BookOpen size={14} />
@@ -91,10 +108,14 @@ export default function Dashboard() {
              </div>
           </div>
 
+          {/* SESSION MONITOR - ARTIK DİNAMİK */}
           <div className="bg-neutral-900/30 border border-neutral-800/50 rounded-lg p-4 flex flex-col items-center justify-center text-center">
              <Globe className="text-neutral-600 w-8 h-8 mb-2" />
              <div className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">SESSION MONITOR</div>
-             <div className="text-xs text-neutral-500">Auto-Detecting...</div>
+             <div className={`text-sm font-bold font-mono tracking-wider ${session.color}`}>{session.name}</div>
+             <div className="mt-2 text-[10px] text-neutral-600 italic px-4 leading-tight">
+               {session.desc}
+             </div>
           </div>
 
           <TrendMonitor fourHourData={data.klines.fourHour} />
