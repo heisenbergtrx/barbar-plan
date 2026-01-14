@@ -37,12 +37,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData();
-    // Sorgu aralığını 5 saniyeye çıkardım (Rate Limit yememek için)
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // HATA EKRANI (Bunu görmek istiyoruz)
+  // HATA EKRANI
   if (error && !data) return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center text-red-500 font-mono p-6 text-center">
         <AlertTriangle className="w-16 h-16 mb-4 animate-bounce" />
@@ -50,16 +49,9 @@ export default function Dashboard() {
         <div className="bg-red-900/20 border border-red-800 p-4 rounded text-sm text-red-300 mb-6 max-w-lg break-all">
           {error}
         </div>
-        <button 
-          onClick={fetchData}
-          className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors"
-        >
+        <button onClick={fetchData} className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors">
           <RefreshCw size={18} /> TEKRAR DENE
         </button>
-        <p className="text-xs text-neutral-600 mt-8 max-w-md">
-            * Eğer "500" hatası alıyorsan: Binance API Vercel sunucusunu blokluyor olabilir.<br/>
-            * Eğer "404" hatası alıyorsan: API rotası (route.js) bulunamıyor.
-        </p>
     </div>
   );
 
@@ -68,7 +60,6 @@ export default function Dashboard() {
     <div className="min-h-screen bg-black flex flex-col items-center justify-center text-amber-500 font-mono">
       <RefreshCw className="w-12 h-12 animate-spin mb-4" />
       <span className="animate-pulse tracking-widest text-lg">TERMINAL LOADING...</span>
-      <span className="text-xs text-neutral-600 mt-2">Connecting to Exchange Feed</span>
     </div>
   );
 
@@ -85,14 +76,18 @@ export default function Dashboard() {
         <ProtocolDisplay />
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* GLOSSARY - Genişletilmiş Versiyon */}
           <div className="bg-neutral-900/50 border border-neutral-800 rounded-lg p-4">
              <div className="flex items-center gap-2 mb-3 text-neutral-500 border-b border-neutral-800 pb-2">
                 <BookOpen size={14} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">GLOSSARY (TR)</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">SÖZLÜK (TR)</span>
              </div>
-             <div className="text-[11px] text-neutral-500 space-y-1">
-               <p><span className="text-amber-500 font-bold">EXT. I (TRAP):</span> Tuzak Bölgesi (SFP).</p>
-               <p><span className="text-amber-500 font-bold">EXT. II (TREND):</span> Trend Hedefi.</p>
+             <div className="grid grid-cols-1 gap-2 text-[10px]">
+               <div className="flex justify-between"><span className="text-amber-500 font-bold">MONDAY RANGE</span> <span className="text-neutral-500 text-right">Haftalık Yön (Bias). Pivot.</span></div>
+               <div className="flex justify-between"><span className="text-amber-500 font-bold">CONFLUENCE</span> <span className="text-neutral-500 text-right">Kesişim. Yüksek Olasılık.</span></div>
+               <div className="flex justify-between"><span className="text-amber-500 font-bold">PWH/PWL</span> <span className="text-neutral-500 text-right">Likidite Havuzları (Sweep).</span></div>
+               <div className="flex justify-between"><span className="text-amber-500 font-bold">EXT. I (TRAP)</span> <span className="text-neutral-500 text-right">Tuzak Bölgesi (SFP).</span></div>
+               <div className="flex justify-between"><span className="text-amber-500 font-bold">EXT. II (TREND)</span> <span className="text-neutral-500 text-right">Trend Hedefi (Expansion).</span></div>
              </div>
           </div>
 
