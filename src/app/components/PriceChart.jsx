@@ -29,7 +29,7 @@ export default function PriceChart({ data, levels }) {
       rightPriceScale: {
         borderColor: '#262626',
         scaleMargins: {
-          top: 0.1, // Grafiği biraz aşağıdan başlat (Yazılar çakışmasın)
+          top: 0.1, 
           bottom: 0.1,
         },
       },
@@ -53,29 +53,24 @@ export default function PriceChart({ data, levels }) {
 
     candleSeries.setData(formattedData);
 
-    // --- AKILLI SEVİYE ÇİZİMİ ---
+    // --- SEVİYE ÇİZİMİ (SADECE ÇİZGİLER) ---
     if (levels && levels.length > 0) {
-        // Son kapanış fiyatını al (Mesafe hesabı için)
         const lastPrice = formattedData[formattedData.length - 1].close;
 
         levels.forEach(lvl => {
             // 1. MESAFE FİLTRESİ:
-            // Fiyata %15'ten daha uzak seviyeleri çizme (Gürültü önleme)
+            // Fiyata %15'ten daha uzak seviyeleri çizme
             const distPercent = Math.abs((lastPrice - lvl.price) / lastPrice) * 100;
             if (distPercent > 15) return;
 
-            // Renk Mantığı
-            const color = lvl.type.includes('resistance') ? '#f87171' : 
-                          lvl.type.includes('support') ? '#34d399' : 
-                          lvl.type.includes('trap') ? '#fb923c' : '#818cf8';
-            
-            // 2. ETİKET TEMİZLİĞİ:
-            // Sadece 'Ana Seviyeler' veya 'Confluence' ise etiket göster.
-            // Extension seviyelerinde etiketi kapat, sadece çizgi kalsın.
-            const isExtension = lvl.type.includes('extension');
-            const showLabel = !isExtension || lvl.isConfluence;
+            // Renk Mantığı (Tablo yazı renkleriyle birebir uyumlu)
+            const color = lvl.type.includes('resistance') ? '#f87171' : // Red-400
+                          lvl.type.includes('support') ? '#34d399' :    // Emerald-400
+                          lvl.type.includes('trap') ? '#fb923c' :       // Orange-400
+                          '#818cf8';                                    // Indigo-400
 
-            // Çizgi Stili: Ana seviyeler düz, Extensionlar kesikli
+            // Çizgi Stili: Ana seviyeler veya Confluence ise DÜZ, Extensionlar KESİKLİ
+            const isExtension = lvl.type.includes('extension');
             const lineStyle = (!isExtension || lvl.isConfluence) ? 0 : 2; 
             const lineWidth = lvl.isConfluence ? 2 : 1;
 
@@ -84,8 +79,8 @@ export default function PriceChart({ data, levels }) {
                 color: color,
                 lineWidth: lineWidth,
                 lineStyle: lineStyle, 
-                axisLabelVisible: showLabel, // Kritik Ayar Burası
-                title: showLabel ? lvl.label : '', 
+                axisLabelVisible: false, // ETİKETLER KAPATILDI (İstek üzerine)
+                title: '',               // Başlık boş
             });
         });
     }
@@ -110,7 +105,7 @@ export default function PriceChart({ data, levels }) {
             CANLI FİYAT & SEVİYELER (4H)
          </div>
          <div className="text-[9px] text-neutral-600 italic">
-            *Sadece fiyata yakın (%15) bölgeler gösteriliyor
+            *Çizgiler fiyata yakın destek/dirençleri temsil eder
          </div>
        </div>
        <div ref={chartContainerRef} className="w-full h-[400px]" />
