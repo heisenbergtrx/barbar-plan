@@ -6,6 +6,7 @@ import MarketVitals from './components/MarketVitals';
 import TrendMonitor from './components/TrendMonitor';
 import ProtocolDisplay from './components/ProtocolDisplay';
 import YearlyFooter from './components/YearlyFooter';
+import HTFLevels from './components/HTFLevels'; // Yeni eklenen bileşen
 import { BookOpen, Globe, AlertTriangle, RefreshCw } from 'lucide-react';
 
 // Oturum Hesaplama Fonksiyonu
@@ -48,11 +49,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData();
-    setSession(getActiveSession()); // İlk yüklemede session ayarla
+    setSession(getActiveSession());
 
     const interval = setInterval(() => {
       fetchData();
-      setSession(getActiveSession()); // Her döngüde session güncelle
+      setSession(getActiveSession());
     }, 5000);
     
     return () => clearInterval(interval);
@@ -85,15 +86,22 @@ export default function Dashboard() {
       <Header price={data.price} />
       
       <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* ÜST BÖLÜM: HAFTALIK VE AYLIK TABLOLAR */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <LevelsTable timeframe="Weekly" klines={data.klines.weekly} price={data.price} dailyData={data.klines.daily} />
           <LevelsTable timeframe="Monthly" klines={data.klines.monthly} price={data.price} />
         </div>
 
+        {/* PROTOKOL UYARISI */}
         <ProtocolDisplay />
 
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* GLOSSARY */}
+        {/* ALT BÖLÜM: ANALİTİK KARTLARI (Grid 5 sütuna çıkarıldı) */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          
+          {/* 1. YENİ EKLENEN: HTF SEVİYELERİ */}
+          <HTFLevels dailyData={data.klines.daily} weeklyData={data.klines.weekly} price={data.price} />
+
+          {/* 2. SÖZLÜK */}
           <div className="bg-neutral-900/50 border border-neutral-800 rounded-lg p-4">
              <div className="flex items-center gap-2 mb-3 text-neutral-500 border-b border-neutral-800 pb-2">
                 <BookOpen size={14} />
@@ -102,13 +110,13 @@ export default function Dashboard() {
              <div className="grid grid-cols-1 gap-2 text-[10px]">
                <div className="flex justify-between"><span className="text-amber-500 font-bold">MONDAY RANGE</span> <span className="text-neutral-500 text-right">Haftalık Yön (Bias). Pivot.</span></div>
                <div className="flex justify-between"><span className="text-amber-500 font-bold">CONFLUENCE</span> <span className="text-neutral-500 text-right">Kesişim. Yüksek Olasılık.</span></div>
-               <div className="flex justify-between"><span className="text-amber-500 font-bold">PWH/PWL</span> <span className="text-neutral-500 text-right">Likidite Havuzları (Sweep).</span></div>
+               <div className="flex justify-between"><span className="text-amber-500 font-bold">PWH/PWL</span> <span className="text-neutral-500 text-right">Likidite Havuzları.</span></div>
                <div className="flex justify-between"><span className="text-amber-500 font-bold">EXT. I (TRAP)</span> <span className="text-neutral-500 text-right">Tuzak Bölgesi (SFP).</span></div>
-               <div className="flex justify-between"><span className="text-amber-500 font-bold">EXT. II (TREND)</span> <span className="text-neutral-500 text-right">Trend Hedefi (Expansion).</span></div>
+               <div className="flex justify-between"><span className="text-amber-500 font-bold">EXT. II (TREND)</span> <span className="text-neutral-500 text-right">Trend Hedefi.</span></div>
              </div>
           </div>
 
-          {/* SESSION MONITOR - ARTIK DİNAMİK */}
+          {/* 3. SESSION MONITOR */}
           <div className="bg-neutral-900/30 border border-neutral-800/50 rounded-lg p-4 flex flex-col items-center justify-center text-center">
              <Globe className="text-neutral-600 w-8 h-8 mb-2" />
              <div className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">SESSION MONITOR</div>
@@ -118,7 +126,10 @@ export default function Dashboard() {
              </div>
           </div>
 
+          {/* 4. TREND MONITOR */}
           <TrendMonitor fourHourData={data.klines.fourHour} />
+          
+          {/* 5. MARKET VITALS */}
           <MarketVitals dailyData={data.klines.daily} />
         </div>
       </div>
