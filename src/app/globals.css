@@ -3,22 +3,41 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 161, 161, 170; /* Zinc-400 */
-  --background-base: #09090b;      /* Daha derin bir siyah (Zinc-950) */
-  --background-card: #121214;      /* Kartlar için */
-  --accent-gold: #f59e0b;          /* Amber-500 */
+  /* Referans kodundaki renk paleti */
+  --base: #0a0a0b;
+  --card: #111113;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1a6;
+  --amber: #f59e0b;
+  
+  /* Next.js/Tailwind uyumluluğu için map ediyoruz */
+  --foreground-rgb: 161, 161, 166; /* text-secondary */
+  --background-base: var(--base);
+  --background-card: var(--card);
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background-color: var(--background-base);
-  
-  /* Noise Overlay - Görünürlük artırıldı */
-  /* Opacity 0.03 -> 0.07 yapıldı ve frekans ayarlandı */
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.07'/%3E%3C/svg%3E");
-  
-  background-attachment: fixed; /* Scroll yaparken doku sabit kalsın */
+  color: var(--text-secondary);
+  background-color: var(--base);
   min-height: 100vh;
+  position: relative;
+  /* Eski background-image'i kaldırdık */
+}
+
+/* NOISE OVERLAY - KATMAN YÖNTEMİ */
+/* Sayfanın en üstüne (z-index: 9999) tıklanamayan bir film tabakası seriyoruz */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* Görünürlük ayarı: 0.03 çok hafifse 0.05'e çekilebilir */
+  opacity: 0.04; 
+  pointer-events: none; /* Tıklamaları engellemez */
+  z-index: 9999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
 
 /* Scrollbar Özelleştirme */
@@ -27,14 +46,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--background-base); 
+  background: var(--base); 
 }
 ::-webkit-scrollbar-thumb {
-  background: #27272a; /* Zinc-800 */
+  background: #27272a; 
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46; /* Zinc-700 */
+  background: #3f3f46; 
 }
 
 /* Selection (Seçim Rengi) */
