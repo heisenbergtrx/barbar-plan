@@ -1,11 +1,12 @@
 import { Outfit } from 'next/font/google';
 import './globals.css';
 
-// Outfit fontunu yapılandırıyoruz
+// 1. Fontu bir CSS değişkeni (variable) olarak yüklüyoruz
 const outfit = Outfit({ 
   subsets: ['latin'],
   display: 'swap',
-  weight: ['300', '400', '500', '600', '700'] // İstediğin tüm ağırlıklar
+  variable: '--font-outfit', // Kritik nokta burası
+  weight: ['300', '400', '500', '600', '700']
 });
 
 export const metadata = {
@@ -16,8 +17,8 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      {/* Fontu tüm body'ye uyguluyoruz */}
-      <body className={`${outfit.className} bg-black text-neutral-400 antialiased`}>
+      {/* 2. Değişkeni body'ye ekleyip, font-sans ile Tailwind'i tetikliyoruz */}
+      <body className={`${outfit.variable} font-sans bg-black text-neutral-400 antialiased`}>
         {children}
       </body>
     </html>

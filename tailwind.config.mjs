@@ -7,6 +7,10 @@ export default {
   ],
   theme: {
     extend: {
+      // Outfit fontunu varsayılan sans-serif olarak atıyoruz
+      fontFamily: {
+        sans: ['var(--font-outfit)', 'sans-serif'],
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
