@@ -11,10 +11,12 @@ export default function PriceChart({ data, levels }) {
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#737373',
+        textColor: '#525252', // text-neutral-600
+        fontFamily: "'Outfit', sans-serif",
+        fontSize: 11,
       },
       grid: {
-        vertLines: { color: '#171717' },
+        vertLines: { color: '#171717' }, // Çok silik ızgara
         horzLines: { color: '#171717' },
       },
       width: chartContainerRef.current.clientWidth,
@@ -22,21 +24,27 @@ export default function PriceChart({ data, levels }) {
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
+        borderColor: '#262626',
+      },
+      rightPriceScale: {
+        borderColor: '#262626',
+        scaleMargins: {
+          top: 0.1, // Grafiği biraz aşağıdan başlat (Yazılar çakışmasın)
+          bottom: 0.1,
+        },
       },
     });
 
-    // Mum Grafiği
     const candleSeries = chart.addCandlestickSeries({
-      upColor: '#10b981', // Emerald-500
-      downColor: '#ef4444', // Red-500
+      upColor: '#10b981', 
+      downColor: '#ef4444', 
       borderVisible: false,
       wickUpColor: '#10b981',
       wickDownColor: '#ef4444',
     });
 
-    // Veriyi TradingView formatına çevir (Time, Open, High, Low, Close)
     const formattedData = data.map(d => ({
-      time: d[0] / 1000, // Unix Timestamp (saniye)
+      time: d[0] / 1000,
       open: parseFloat(d[1]),
       high: parseFloat(d[2]),
       low: parseFloat(d[3]),
@@ -45,15 +53,30 @@ export default function PriceChart({ data, levels }) {
 
     candleSeries.setData(formattedData);
 
-    // SEVİYELERİ ÇİZ (PWH, PWL, EXTENSIONS)
-    if (levels) {
+    // --- AKILLI SEVİYE ÇİZİMİ ---
+    if (levels && levels.length > 0) {
+        // Son kapanış fiyatını al (Mesafe hesabı için)
+        const lastPrice = formattedData[formattedData.length - 1].close;
+
         levels.forEach(lvl => {
-            const color = lvl.type.includes('resistance') ? '#f87171' : // Red-400
-                          lvl.type.includes('support') ? '#34d399' :    // Emerald-400
-                          lvl.type.includes('trap') ? '#fb923c' :       // Orange-400
-                          '#818cf8';                                    // Indigo-400 (Trend)
+            // 1. MESAFE FİLTRESİ:
+            // Fiyata %15'ten daha uzak seviyeleri çizme (Gürültü önleme)
+            const distPercent = Math.abs((lastPrice - lvl.price) / lastPrice) * 100;
+            if (distPercent > 15) return;
+
+            // Renk Mantığı
+            const color = lvl.type.includes('resistance') ? '#f87171' : 
+                          lvl.type.includes('support') ? '#34d399' : 
+                          lvl.type.includes('trap') ? '#fb923c' : '#818cf8';
             
-            const lineStyle = lvl.isConfluence ? 0 : 2; // Confluence ise düz, değilse kesikli çizgi
+            // 2. ETİKET TEMİZLİĞİ:
+            // Sadece 'Ana Seviyeler' veya 'Confluence' ise etiket göster.
+            // Extension seviyelerinde etiketi kapat, sadece çizgi kalsın.
+            const isExtension = lvl.type.includes('extension');
+            const showLabel = !isExtension || lvl.isConfluence;
+
+            // Çizgi Stili: Ana seviyeler düz, Extensionlar kesikli
+            const lineStyle = (!isExtension || lvl.isConfluence) ? 0 : 2; 
             const lineWidth = lvl.isConfluence ? 2 : 1;
 
             candleSeries.createPriceLine({
@@ -61,13 +84,12 @@ export default function PriceChart({ data, levels }) {
                 color: color,
                 lineWidth: lineWidth,
                 lineStyle: lineStyle, 
-                axisLabelVisible: true,
-                title: lvl.label,
+                axisLabelVisible: showLabel, // Kritik Ayar Burası
+                title: showLabel ? lvl.label : '', 
             });
         });
     }
 
-    // Responsive Ayarı
     const handleResize = () => {
       chart.applyOptions({ width: chartContainerRef.current.clientWidth });
     };
@@ -82,9 +104,14 @@ export default function PriceChart({ data, levels }) {
 
   return (
     <div className="bg-neutral-900/30 border border-neutral-800/50 rounded-lg p-4 mb-6">
-       <div className="text-[10px] text-neutral-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-          CANLI FİYAT & SEVİYELER (4H)
+       <div className="flex justify-between items-center mb-2">
+         <div className="text-[10px] text-neutral-500 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            CANLI FİYAT & SEVİYELER (4H)
+         </div>
+         <div className="text-[9px] text-neutral-600 italic">
+            *Sadece fiyata yakın (%15) bölgeler gösteriliyor
+         </div>
        </div>
        <div ref={chartContainerRef} className="w-full h-[400px]" />
     </div>

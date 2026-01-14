@@ -33,7 +33,7 @@ export default function Header({ price }) {
             <Layers className="w-5 h-5 text-amber-500" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-neutral-200 tracking-tight leading-none">BARBARIANS<span className="text-amber-500">.</span>PLAN</h1>
+            <h1 className="text-lg font-bold text-neutral-200 tracking-tight leading-none">BARBAR<span className="text-amber-500">.</span>PLAN</h1>
             <div className="flex items-center gap-2 mt-0.5">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
               <span className="text-[10px] text-neutral-600 font-mono tracking-wider">LIVE FEED • <span className={session.color}>{session.name}</span></span>
