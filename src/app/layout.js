@@ -12,11 +12,3 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
-```
-
-Bunu yaptıktan sonra, VS Code terminalinden şu komutları çalıştırarak tekrar gönder:
-
-```bash
-git add .
-git commit -m "Fix: Add missing root layout"
-git push
