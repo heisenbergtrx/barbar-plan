@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
+import dynamic from 'next/dynamic'; // Dynamic import için gerekli
 import Header from './components/Header';
 import LevelsTable from './components/LevelsTable';
 import MarketVitals from './components/MarketVitals';
@@ -7,8 +8,13 @@ import TrendMonitor from './components/TrendMonitor';
 import ProtocolDisplay from './components/ProtocolDisplay';
 import YearlyFooter from './components/YearlyFooter';
 import HTFLevels from './components/HTFLevels';
-import PriceChart from './components/PriceChart'; // Grafik bileşeni
 import { BookOpen, Globe, AlertTriangle, RefreshCw } from 'lucide-react';
+
+// PriceChart'ı sunucu tarafında (SSR) devre dışı bırakarak çağırıyoruz
+const PriceChart = dynamic(() => import('./components/PriceChart'), { 
+  ssr: false,
+  loading: () => <div className="w-full h-[400px] bg-neutral-900/30 animate-pulse rounded-lg border border-neutral-800/50 flex items-center justify-center text-xs text-neutral-600">Grafik Yükleniyor...</div>
+});
 
 // Oturum Hesaplama
 const getActiveSession = () => {
@@ -106,7 +112,7 @@ export default function Dashboard() {
       
       <div className="max-w-7xl mx-auto px-4 py-6">
         
-        {/* 1. GRAFİK (Price Chart) - En Üste Eklendi */}
+        {/* 1. GRAFİK (Price Chart) - Client Side Only */}
         <PriceChart data={data.klines.fourHour} levels={chartLevels} />
 
         {/* 2. TABLOLAR (Grid) */}
