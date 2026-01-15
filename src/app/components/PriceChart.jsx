@@ -11,13 +11,13 @@ export default function PriceChart({ data, levels }) {
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#525252', // text-neutral-600
-        fontFamily: "'Outfit', sans-serif",
+        textColor: '#525252',
+        fontFamily: "'Inter', sans-serif",
         fontSize: 11,
       },
       grid: {
-        vertLines: { color: '#171717' }, // Çok silik ızgara
-        horzLines: { color: '#171717' },
+        vertLines: { color: '#1a1a1a' },
+        horzLines: { color: '#1a1a1a' },
       },
       width: chartContainerRef.current.clientWidth,
       height: 400,
@@ -29,18 +29,30 @@ export default function PriceChart({ data, levels }) {
       rightPriceScale: {
         borderColor: '#262626',
         scaleMargins: {
-          top: 0.1, 
+          top: 0.1,
           bottom: 0.1,
+        },
+      },
+      crosshair: {
+        vertLine: {
+          color: '#f59e0b40',
+          width: 1,
+          style: 2,
+        },
+        horzLine: {
+          color: '#f59e0b40',
+          width: 1,
+          style: 2,
         },
       },
     });
 
     const candleSeries = chart.addCandlestickSeries({
-      upColor: '#10b981', 
-      downColor: '#ef4444', 
+      upColor: '#10b981',
+      downColor: '#ef4444',
       borderVisible: false,
-      wickUpColor: '#10b981',
-      wickDownColor: '#ef4444',
+      wickUpColor: '#10b98180',
+      wickDownColor: '#ef444480',
     });
 
     const formattedData = data.map(d => ({
@@ -53,36 +65,43 @@ export default function PriceChart({ data, levels }) {
 
     candleSeries.setData(formattedData);
 
-    // --- SEVİYE ÇİZİMİ (SADECE ÇİZGİLER) ---
+    // Seviye çizgileri
     if (levels && levels.length > 0) {
-        const lastPrice = formattedData[formattedData.length - 1].close;
+      const lastPrice = formattedData[formattedData.length - 1].close;
 
-        levels.forEach(lvl => {
-            // 1. MESAFE FİLTRESİ:
-            // Fiyata %15'ten daha uzak seviyeleri çizme
-            const distPercent = Math.abs((lastPrice - lvl.price) / lastPrice) * 100;
-            if (distPercent > 15) return;
+      levels.forEach(lvl => {
+        // %15'ten uzak seviyeleri çizme
+        const distPercent = Math.abs((lastPrice - lvl.price) / lastPrice) * 100;
+        if (distPercent > 15) return;
 
-            // Renk Mantığı (Tablo yazı renkleriyle birebir uyumlu)
-            const color = lvl.type.includes('resistance') ? '#f87171' : // Red-400
-                          lvl.type.includes('support') ? '#34d399' :    // Emerald-400
-                          lvl.type.includes('trap') ? '#fb923c' :       // Orange-400
-                          '#818cf8';                                    // Indigo-400
+        // Renk belirleme
+        let color;
+        if (lvl.isConfluence) {
+          color = '#fbbf24'; // Amber - Confluence
+        } else if (lvl.type.includes('resistance')) {
+          color = '#f87171'; // Red
+        } else if (lvl.type.includes('support')) {
+          color = '#34d399'; // Emerald
+        } else if (lvl.type.includes('trap')) {
+          color = '#fb923c'; // Orange
+        } else {
+          color = '#818cf8'; // Indigo
+        }
 
-            // Çizgi Stili: Ana seviyeler veya Confluence ise DÜZ, Extensionlar KESİKLİ
-            const isExtension = lvl.type.includes('extension');
-            const lineStyle = (!isExtension || lvl.isConfluence) ? 0 : 2; 
-            const lineWidth = lvl.isConfluence ? 2 : 1;
+        // Çizgi stili
+        const isExtension = lvl.type.includes('extension');
+        const lineStyle = (!isExtension || lvl.isConfluence) ? 0 : 2;
+        const lineWidth = lvl.isConfluence ? 2 : 1;
 
-            candleSeries.createPriceLine({
-                price: lvl.price,
-                color: color,
-                lineWidth: lineWidth,
-                lineStyle: lineStyle, 
-                axisLabelVisible: false, // ETİKETLER KAPATILDI (İstek üzerine)
-                title: '',               // Başlık boş
-            });
+        candleSeries.createPriceLine({
+          price: lvl.price,
+          color: color,
+          lineWidth: lineWidth,
+          lineStyle: lineStyle,
+          axisLabelVisible: false,
+          title: '',
         });
+      });
     }
 
     const handleResize = () => {
@@ -98,17 +117,25 @@ export default function PriceChart({ data, levels }) {
   }, [data, levels]);
 
   return (
-    <div className="bg-neutral-900/30 border border-neutral-800/50 rounded-lg p-4 mb-6">
-       <div className="flex justify-between items-center mb-2">
-         <div className="text-[10px] text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-            CANLI FİYAT & SEVİYELER (4H)
-         </div>
-         <div className="text-[9px] text-neutral-600 italic">
-            *Çizgiler fiyata yakın destek/dirençleri temsil eder
-         </div>
-       </div>
-       <div ref={chartContainerRef} className="w-full h-[400px]" />
+    <div className="bg-[#0d0d0f] border border-neutral-800/50 rounded-lg p-4 mb-6">
+      <div className="flex justify-between items-center mb-3">
+        <div className="text-[10px] text-neutral-500 uppercase tracking-widest flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          CANLI FİYAT & SEVİYELER (4H)
+        </div>
+        <div className="flex items-center gap-3 text-[9px] text-neutral-600">
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-0.5 bg-red-400" /> RES
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-0.5 bg-emerald-400" /> SUP
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-0.5 bg-amber-400" /> CONF
+          </span>
+        </div>
+      </div>
+      <div ref={chartContainerRef} className="w-full h-[400px]" />
     </div>
   );
 }
